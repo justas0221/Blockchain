@@ -35,88 +35,55 @@ const uint32_t K[64] = {
     0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
 };
 
-std::string hash_function(std::string input);
-std::vector<std::bitset<8>> text_to_binary(std::string text);
-std::vector<unsigned long> binary_to_hex(std::vector<std::bitset<8>> binary);
+std::string hash_function(const std::string& input);
 void initialize(uint32_t state[8]);
 void padding(const uint8_t* input, size_t input_length, uint8_t** padded_message, size_t* padded_length);
 void process_block(uint32_t state[8], const uint8_t block[BLOCK_SIZE]);
 
 int main()
 {
-    const char* input = "";
-    size_t input_length = std::strlen(input);
-
-    uint8_t* padded_input;
-    size_t padded_length;
-
-    // Step 1: Initialize hash state
-    uint32_t state[8];
-    initialize(state);
-
-    // Step 2: Pad the input message
-    padding(reinterpret_cast<const uint8_t*>(input), input_length, &padded_input, &padded_length);
-
-    // Step 3: Process each 64-byte block of the padded message
-    for (size_t i = 0; i < padded_length; i += BLOCK_SIZE) {
-        process_block(state, padded_input + i);
-    }
-
-    // Step 4: Final hash output
-    std::cout << "Hash: ";
-    for (int i = 0; i < 8; ++i) {
-        std::cout << std::hex << std::setw(8) << std::setfill('0') << state[i];
-    }
-    std::cout << std::dec << std::endl;
-
-    // Free the allocated memory for padded_input
-    delete[] padded_input;
+    std::string input = "";
+    
+    // Call hash function
+    std::string hash = hash_function(input);
+    
+    // Output the result
+    std::cout << "Hash: " << hash << std::endl;
 
     return 0;
 }
 
-// Function which does the hashing and returns the output
-std::string hash_function(std::string input)
+// Function which does the hashing and returns the final output as a string
+std::string hash_function(const std::string& input)
 {
-    std::string output;
-    std::vector<std::bitset<8>> input_in_binary = text_to_binary(input);
+    uint32_t state[8];
+    initialize(state);
 
-    return output;
-}
+    uint8_t* padded_input;
+    size_t padded_length;
+    
+    // Pad the input
+    padding(reinterpret_cast<const uint8_t*>(input.c_str()), input.size(), &padded_input, &padded_length);
 
-/* Function which takes a string and returns a vector
-   where each element is a single character of the string turned into a binary expression */
-std::vector<std::bitset<8>> text_to_binary(std::string text)
-{
-    std::vector<std::bitset<8>> text_in_binary;
-
-    for (std::size_t i = 0; i < text.size(); ++i)
-    {
-        text_in_binary.push_back(std::bitset<8>(text[i]));
+    // Process each 64-byte block of the padded message
+    for (size_t i = 0; i < padded_length; i += BLOCK_SIZE) {
+        process_block(state, padded_input + i);
     }
 
-    return text_in_binary;
-}
-
-/* Function which takes a vector of binary expressions and
-   returns a vector where each element is turned from binary to unsigned long */
-std::vector<unsigned long> binary_to_hex(std::vector<std::bitset<8>> binary)
-{
-    std::vector<unsigned long> hex;
-
-    for (auto &i : binary)
-    {
-        hex.push_back(i.to_ulong());
+    // Convert the final hash state to a hex string
+    std::stringstream hash_output;
+    for (int i = 0; i < 8; ++i) {
+        hash_output << std::hex << std::setw(8) << std::setfill('0') << state[i];
     }
 
-    return hex;
+    delete[] padded_input;
+    return hash_output.str();
 }
 
 // Initialize the state with the initial constants
 void initialize(uint32_t state[8])
 {
-    for (int i = 0; i < 8; i++)
-    {
+    for (int i = 0; i < 8; i++) {
         state[i] = H[i];
     }
 }
@@ -153,19 +120,17 @@ void process_block(uint32_t state[8], const uint8_t block[BLOCK_SIZE])
     uint32_t W[64];
 
     // Prepare the message schedule
-    for (int i = 0; i < 16; ++i)
-    {
+    for (int i = 0; i < 16; ++i) {
         W[i] = (block[i * 4] << 24) | (block[i * 4 + 1] << 16) | (block[i * 4 + 2] << 8) | (block[i * 4 + 3]);
     }
-    for (int i = 16; i < 64; ++i)
-    {
+    for (int i = 16; i < 64; ++i) {
         uint32_t s0 = (W[i - 15] >> 6 | W[i - 15] << (32 - 6)) ^ 
-                    (W[i - 15] >> 12 | W[i - 15] << (32 - 12)) ^ 
-                    (W[i - 15] >> 5);
+                      (W[i - 15] >> 12 | W[i - 15] << (32 - 12)) ^ 
+                      (W[i - 15] >> 5);
 
         uint32_t s1 = (W[i - 2] >> 14 | W[i - 2] << (32 - 14)) ^ 
-                    (W[i - 2] >> 23 | W[i - 2] << (32 - 23)) ^ 
-                    (W[i - 2] >> 9);
+                      (W[i - 2] >> 23 | W[i - 2] << (32 - 23)) ^ 
+                      (W[i - 2] >> 9);
 
         W[i] = W[i - 16] + s0 + W[i - 7] + s1;
     }
@@ -175,8 +140,7 @@ void process_block(uint32_t state[8], const uint8_t block[BLOCK_SIZE])
     uint32_t e = state[4], f = state[5], g = state[6], h = state[7];
 
     // Compression function main loop
-    for (int i = 0; i < 64; ++i)
-    {
+    for (int i = 0; i < 64; ++i) {
         uint32_t S1 = (e >> 6 | e << (32 - 6)) ^ 
                       (e >> 11 | e << (32 - 11)) ^ 
                       (e >> 25 | e << (32 - 25));
