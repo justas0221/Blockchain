@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <cstring>
 #include <iomanip>
+#include <fstream>
+#include <ios>
 
 #define BLOCK_SIZE 64
 
@@ -39,11 +41,21 @@ std::string hash_function(const std::string& input);
 void initialize(uint32_t state[8]);
 void padding(const uint8_t* input, size_t input_length, uint8_t** padded_message, size_t* padded_length);
 void process_block(uint32_t state[8], const uint8_t block[BLOCK_SIZE]);
+void read_file(char *argv, std::string &input);
+void manual_input(std::string &input);
 
-int main()
+int main(int argc, char **argv)
 {
-    std::string input = "";
-    
+    std::string input;
+    if (argc == 2)
+    {
+        read_file(argv[1], input);
+    }
+    else
+    {
+        manual_input(input);
+    }
+
     // Call hash function
     std::string hash = hash_function(input);
     
@@ -170,4 +182,29 @@ void process_block(uint32_t state[8], const uint8_t block[BLOCK_SIZE])
     state[5] += f;
     state[6] += g;
     state[7] += h;
+}
+
+void read_file(char *argv, std::string& input)
+{
+
+    std::ifstream input_file;
+    input_file.open(argv, std::ios_base::binary);
+
+    if (input_file)
+    {
+        std::stringstream ss;
+        ss << input_file.rdbuf();
+        input = ss.str();
+    }
+    else
+    {
+        std::cerr << "Failed to open file: " << argv << std::endl;
+        exit(0);
+    }
+}
+
+void manual_input(std::string &input)
+{
+    std::cout << "Ivestis: ";
+    std::getline(std::cin, input);
 }
