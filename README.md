@@ -74,3 +74,7 @@ Grąžinti<br />
 | 256 | 257 |
 | 512 | 420 |
 | 1024 | 642 |
+
+![Results Graph](graph.png)
+
+Iš aukščiau pavaizduoto grafo galime spręsti, jog maišos algoritmo sudėtingumas yra panašus į tiesinį.
