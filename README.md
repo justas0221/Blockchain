@@ -58,3 +58,19 @@ Grąžinti<br />
 | one_difference1.txt | 3de8903576b042a674cf574011e70e75bb85e7de15788e6e4da4e17cca0b1c0d |
 | one_difference2.txt | 8dbee927c4b18e48fa5042b9f1f94c1fbe0c6324c243f7fe79505d2e7d974808 |
 | empty.txt | 06d3ff0726e3e0b1f584f9c4411033a26758368f5a7e9f17006a0e5878fead43 |
+
+### Laiko matavimas
+
+| Line Count | Time (μs) |
+| --- | --- |
+| 1 | 4 |
+| 2 | 5 |
+| 4 | 6 |
+| 8 | 4 |
+| 16 | 12 |
+| 32 | 16 |
+| 64 | 34 |
+| 128 | 86 |
+| 256 | 257 |
+| 512 | 420 |
+| 1024 | 642 |

@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <fstream>
 #include <ios>
+#include <chrono>
 
 #define BLOCK_SIZE 64
 
@@ -43,6 +44,8 @@ void padding(const uint8_t* input, size_t input_length, uint8_t** padded_message
 void process_block(uint32_t state[8], const uint8_t block[BLOCK_SIZE]);
 void read_file(char *argv, std::string &input);
 void manual_input(std::string &input);
+void time_tracking(std::string& input);
+void read_file_time(std::string& input, int line_count);
 
 int main(int argc, char **argv)
 {
@@ -58,6 +61,8 @@ int main(int argc, char **argv)
 
     // Call hash function
     std::string hash = hash_function(input);
+
+    // time_tracking(input);
     
     // Output the result
     std::cout << "Hash: " << hash << std::endl;
@@ -207,4 +212,48 @@ void manual_input(std::string &input)
 {
     std::cout << "Ivestis: ";
     std::getline(std::cin, input);
+}
+
+void time_tracking(std::string& input)
+{
+    const int repetitions = 5;
+
+    for (int i = 1; i < 1025; i *= 2)
+    {
+        std::string input;
+        std::string hash;
+        read_file_time(input, i);
+
+        auto start = std::chrono::high_resolution_clock::now();
+        for (int j = 0; j < repetitions; j++)
+        {
+            hash = hash_function(input);
+        }
+        auto finish = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(finish - start) / repetitions;
+
+        std::cout << "Hash: " << hash << " Time: " << duration.count() << " microseconds" << std::endl;
+    }
+}
+
+void read_file_time(std::string& input, int line_count)
+{
+    std::ifstream input_file;
+    input_file.open("konstitucija.txt");
+
+    if (input_file)
+    {
+        std::stringstream ss;
+        for (int i = 0; i < line_count; i++)
+        {
+            std::getline(input_file, input);
+            ss << input;
+        }
+        input = ss.str();
+    }
+    else
+    {
+        std::cerr << "Failed to open file: konstitucija.txt" << std::endl;
+        exit(0);
+    }
 }
