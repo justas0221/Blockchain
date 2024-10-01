@@ -9,6 +9,7 @@
 #include <fstream>
 #include <ios>
 #include <chrono>
+#include <random>
 
 #define BLOCK_SIZE 64
 
@@ -46,6 +47,8 @@ void read_file(char *argv, std::string &input);
 void manual_input(std::string &input);
 void time_tracking(std::string& input);
 void read_file_time(std::string& input, int line_count);
+void generate_strings();
+void collision_search();
 
 int main(int argc, char **argv)
 {
@@ -61,6 +64,8 @@ int main(int argc, char **argv)
 
     // Call hash function
     std::string hash = hash_function(input);
+
+    // collision_search();
 
     // time_tracking(input);
     
@@ -206,6 +211,8 @@ void read_file(char *argv, std::string& input)
         std::cerr << "Failed to open file: " << argv << std::endl;
         exit(0);
     }
+
+    input_file.close();
 }
 
 void manual_input(std::string &input)
@@ -256,4 +263,56 @@ void read_file_time(std::string& input, int line_count)
         std::cerr << "Failed to open file: konstitucija.txt" << std::endl;
         exit(0);
     }
+
+    input_file.close();
+}
+
+void generate_strings()
+{
+    std::ofstream output("100k_strings.txt", std::ios::app);
+    const std::string CHARACTERS = "abcdefghijklmnopqrstuvwxyz";
+
+    std::random_device rd;
+    std::mt19937 generator(rd());
+
+    std::uniform_int_distribution<> distribution(0, CHARACTERS.size() - 1);
+
+    for (int i = 0; i < 25000; ++i)
+    {
+        std::string random_string1;
+        std::string random_string2;
+        for (int j = 0; j < 1000; ++j)
+        {
+            random_string1 += CHARACTERS[distribution(generator)];
+            random_string2 += CHARACTERS[distribution(generator)];
+        }
+        output << random_string1 << "," << random_string2 << std::endl;
+    }
+
+    output.close();
+}
+
+void collision_search()
+{
+    std::ifstream file("100k_strings.txt");
+    int collision_count = 0;
+    std::string string1, string2, line;
+
+    while (!file.eof())
+    {
+        std::getline(file, line);
+        std::stringstream ss(line);
+
+        std::getline(ss, string1, ',');
+        std::getline(ss, string2);
+
+        if (hash_function(string1) == hash_function(string2))
+        {
+            collision_count++;
+        }
+    }
+
+    std::cout << collision_count << std::endl;
+
+    file.close();
 }

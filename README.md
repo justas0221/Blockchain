@@ -78,3 +78,11 @@ Grąžinti<br />
 ![Results Graph](graph.png)
 
 Iš aukščiau pavaizduoto grafo galime spręsti, jog maišos algoritmo sudėtingumas yra panašus į tiesinį.
+
+### Kolizijų paieška
+
+| Kolizijų kiekis |
+| --- |
+| 0 |
+
+Testavimo metu su 100 tūkstančių porų duomenų failu nebuvo rastas nei vienas kolizijos atvejis.
