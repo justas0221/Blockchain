@@ -10,6 +10,8 @@
 #include <ios>
 #include <chrono>
 #include <random>
+#include <vector>
+#include <numeric>
 
 #define BLOCK_SIZE 64
 
@@ -49,6 +51,8 @@ void time_tracking(std::string& input);
 void read_file_time(std::string& input, int line_count);
 void generate_strings();
 void collision_search();
+std::string hex_to_binary(const std::string& hex);
+void hex_percentage_difference();
 
 int main(int argc, char **argv)
 {
@@ -64,13 +68,11 @@ int main(int argc, char **argv)
 
     // Call hash function
     std::string hash = hash_function(input);
-
-    // collision_search();
-
-    // time_tracking(input);
     
     // Output the result
     std::cout << "Hash: " << hash << std::endl;
+
+    hex_percentage_difference();
 
     return 0;
 }
@@ -88,13 +90,15 @@ std::string hash_function(const std::string& input)
     padding(reinterpret_cast<const uint8_t*>(input.c_str()), input.size(), &padded_input, &padded_length);
 
     // Process each 64-byte block of the padded message
-    for (size_t i = 0; i < padded_length; i += BLOCK_SIZE) {
+    for (size_t i = 0; i < padded_length; i += BLOCK_SIZE)
+    {
         process_block(state, padded_input + i);
     }
 
     // Convert the final hash state to a hex string
     std::stringstream hash_output;
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < 8; ++i)
+    {
         hash_output << std::hex << std::setw(8) << std::setfill('0') << state[i];
     }
 
@@ -105,7 +109,8 @@ std::string hash_function(const std::string& input)
 // Initialize the state with the initial constants
 void initialize(uint32_t state[8])
 {
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 8; i++)
+    {
         state[i] = H[i];
     }
 }
@@ -142,10 +147,12 @@ void process_block(uint32_t state[8], const uint8_t block[BLOCK_SIZE])
     uint32_t W[64];
 
     // Prepare the message schedule
-    for (int i = 0; i < 16; ++i) {
+    for (int i = 0; i < 16; ++i)
+    {
         W[i] = (block[i * 4] << 24) | (block[i * 4 + 1] << 16) | (block[i * 4 + 2] << 8) | (block[i * 4 + 3]);
     }
-    for (int i = 16; i < 64; ++i) {
+    for (int i = 16; i < 64; ++i)
+    {
         uint32_t s0 = (W[i - 15] >> 6 | W[i - 15] << (32 - 6)) ^ 
                       (W[i - 15] >> 12 | W[i - 15] << (32 - 12)) ^ 
                       (W[i - 15] >> 5);
@@ -162,7 +169,8 @@ void process_block(uint32_t state[8], const uint8_t block[BLOCK_SIZE])
     uint32_t e = state[4], f = state[5], g = state[6], h = state[7];
 
     // Compression function main loop
-    for (int i = 0; i < 64; ++i) {
+    for (int i = 0; i < 64; ++i)
+    {
         uint32_t S1 = (e >> 6 | e << (32 - 6)) ^ 
                       (e >> 11 | e << (32 - 11)) ^ 
                       (e >> 25 | e << (32 - 25));
@@ -269,23 +277,34 @@ void read_file_time(std::string& input, int line_count)
 
 void generate_strings()
 {
-    std::ofstream output("100k_strings.txt", std::ios::app);
+    std::ofstream output("100k_one_difference.txt", std::ios::app);
     const std::string CHARACTERS = "abcdefghijklmnopqrstuvwxyz";
 
     std::random_device rd;
     std::mt19937 generator(rd());
 
-    std::uniform_int_distribution<> distribution(0, CHARACTERS.size() - 1);
+    std::uniform_int_distribution<> char_distribution(0, CHARACTERS.size() - 1);
+    std::uniform_int_distribution<> index_distribution(0, 999);
 
     for (int i = 0; i < 25000; ++i)
     {
         std::string random_string1;
         std::string random_string2;
+        int random_index = index_distribution(generator);
+
         for (int j = 0; j < 1000; ++j)
         {
-            random_string1 += CHARACTERS[distribution(generator)];
-            random_string2 += CHARACTERS[distribution(generator)];
+            char random_symbol = CHARACTERS[char_distribution(generator)];
+            random_string1 += random_symbol;
+            random_string2 += random_symbol;
         }
+
+        do
+        {
+            random_string1[random_index] = CHARACTERS[char_distribution(generator)];
+            random_string2[random_index] = CHARACTERS[char_distribution(generator)];
+        } while (random_string1[random_index] == random_string2[random_index]);
+
         output << random_string1 << "," << random_string2 << std::endl;
     }
 
@@ -313,6 +332,67 @@ void collision_search()
     }
 
     std::cout << collision_count << std::endl;
+
+    file.close();
+}
+
+std::string hex_to_binary(const std::string& hex)
+{
+    std::string binary_data;
+    binary_data.reserve(hex.size() / 2);
+
+    for (size_t i = 0; i < hex.size(); i += 2) {
+        std::string byte = hex.substr(i, 2);
+        char chr = static_cast<char>(strtol(byte.c_str(), nullptr, 16));
+        binary_data.push_back(chr);
+    }
+    return binary_data;
+}
+
+void hex_percentage_difference()
+{
+    std::ifstream file("100k_one_difference.txt");
+    double min_difference = 100, max_difference = 0, avg_difference, percentage;
+    std::string line, string1, string2, hash1, hash2;
+    int matches_count = 0;
+    std::vector<double> percentages;
+
+    while (!file.eof())
+    {
+        std::getline(file, line);
+        std::stringstream ss(line);
+
+        std::getline(ss, string1, ',');
+        std::getline(ss, string2);
+
+        hash1 = hash_function(string1);
+        hash2 = hash_function(string2);
+        
+        for (int i = 0; i < 64; ++i)
+        {
+            if (hash1[i] == hash2[i])
+            {
+                matches_count++;
+            }
+        }
+
+        percentage = 100 - (double(matches_count / 64.0) * 100);
+        if (percentage > max_difference)
+        {
+            max_difference = percentage;
+        }
+        if (percentage < min_difference)
+        {
+            min_difference = percentage;
+        }
+        percentages.push_back(percentage);
+        matches_count = 0;
+    }
+
+    avg_difference = std::accumulate(percentages.begin(), percentages.end(), 0) / 100000.0;
+
+    std::cout << "Average difference: " << avg_difference << "%" << std::endl;
+    std::cout << "Min: " << min_difference << "%" << " Max: " << max_difference << "%" << std::endl;
 
     file.close();
 }

@@ -85,4 +85,12 @@ Iš aukščiau pavaizduoto grafo galime spręsti, jog maišos algoritmo sudėtin
 | --- |
 | 0 |
 
-Testavimo metu su 100 tūkstančių porų duomenų failu nebuvo rastas nei vienas kolizijos atvejis.
+Testavimo metu su 100 tūkstančių porų duomenų failu nebuvo aptikta nei viena kolizija.
+
+### Lavinos efekto testavimas
+
+#### Hex lygio skirtumai:
+
+Vidutinis: 93.2694%
+Minimalus: 78.125%
+Maksimalus: 100%
