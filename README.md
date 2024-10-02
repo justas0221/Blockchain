@@ -95,8 +95,21 @@ Vidutinis: 93.2694%<br />
 Minimalus: 78.125%<br />
 Maksimalus: 100%
 
-#### Binary lygio skirtumai:
+#### Bit lygio skirtumai:
 
 Vidutinis: 82.1156%<br />
 Minimalus: 64.0625%<br />
 Maksimalus: 93.75%
+
+## Išvados
+
+### Stiprybės
+
+Greitas veikimo laikas<br />
+O(n) algoritmo sudėtingumas<br />
+Atsparumas kolizijoms<br />
+Aukšti hex lygio procentiniai skirtumai
+
+### Silpnybės
+Bit lygio procentiniai skirtumai galėtų būti didesni
+Algoritmas paprastas, todėl neaiškus jo saugumo lygis

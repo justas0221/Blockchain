@@ -73,8 +73,6 @@ int main(int argc, char **argv)
     // Output the result
     std::cout << "Hash: " << hash << std::endl;
 
-    binary_percentage_difference();
-
     return 0;
 }
 
@@ -254,9 +252,7 @@ void time_tracking(std::string& input)
 
 void read_file_time(std::string& input, int line_count)
 {
-    std::ifstream input_file;
-    input_file.open("konstitucija.txt");
-
+    std::ifstream input_file("test_files/konstitucija.txt");
     if (input_file)
     {
         std::stringstream ss;
@@ -278,7 +274,7 @@ void read_file_time(std::string& input, int line_count)
 
 void generate_strings()
 {
-    std::ofstream output("100k_one_difference.txt", std::ios::app);
+    std::ofstream output("test_files/100k_one_difference.txt", std::ios::app);
     const std::string CHARACTERS = "abcdefghijklmnopqrstuvwxyz";
 
     std::random_device rd;
@@ -314,7 +310,7 @@ void generate_strings()
 
 void collision_search()
 {
-    std::ifstream file("100k_strings.txt");
+    std::ifstream file("test_files/100k_strings.txt");
     int collision_count = 0;
     std::string string1, string2, line;
 
@@ -352,7 +348,7 @@ std::string hex_to_binary(const std::string& hex)
 
 void hex_percentage_difference()
 {
-    std::ifstream file("100k_one_difference.txt");
+    std::ifstream file("test_files/100k_one_difference.txt");
     double min_difference = 100, max_difference = 0, avg_difference, percentage;
     std::string line, string1, string2, hash1, hash2;
     int matches_count = 0;
@@ -400,7 +396,7 @@ void hex_percentage_difference()
 
 void binary_percentage_difference()
 {
-    std::ifstream file("100k_one_difference.txt");
+    std::ifstream file("test_files/100k_one_difference.txt");
     double min_difference = 100, max_difference = 0, avg_difference, percentage;
     std::string line, string1, string2, hash1, hash2;
     int matches_count = 0;
