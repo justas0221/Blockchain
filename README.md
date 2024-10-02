@@ -91,6 +91,12 @@ Testavimo metu su 100 tūkstančių porų duomenų failu nebuvo aptikta nei vien
 
 #### Hex lygio skirtumai:
 
-Vidutinis: 93.2694%
-Minimalus: 78.125%
+Vidutinis: 93.2694%<br />
+Minimalus: 78.125%<br />
 Maksimalus: 100%
+
+#### Binary lygio skirtumai:
+
+Vidutinis: 82.1156%<br />
+Minimalus: 64.0625%<br />
+Maksimalus: 93.75%

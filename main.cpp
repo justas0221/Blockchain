@@ -53,6 +53,7 @@ void generate_strings();
 void collision_search();
 std::string hex_to_binary(const std::string& hex);
 void hex_percentage_difference();
+void binary_percentage_difference();
 
 int main(int argc, char **argv)
 {
@@ -72,7 +73,7 @@ int main(int argc, char **argv)
     // Output the result
     std::cout << "Hash: " << hash << std::endl;
 
-    hex_percentage_difference();
+    binary_percentage_difference();
 
     return 0;
 }
@@ -371,6 +372,57 @@ void hex_percentage_difference()
         for (int i = 0; i < 64; ++i)
         {
             if (hash1[i] == hash2[i])
+            {
+                matches_count++;
+            }
+        }
+
+        percentage = 100 - (double(matches_count / 64.0) * 100);
+        if (percentage > max_difference)
+        {
+            max_difference = percentage;
+        }
+        if (percentage < min_difference)
+        {
+            min_difference = percentage;
+        }
+        percentages.push_back(percentage);
+        matches_count = 0;
+    }
+
+    avg_difference = std::accumulate(percentages.begin(), percentages.end(), 0) / 100000.0;
+
+    std::cout << "Average difference: " << avg_difference << "%" << std::endl;
+    std::cout << "Min: " << min_difference << "%" << " Max: " << max_difference << "%" << std::endl;
+
+    file.close();
+}
+
+void binary_percentage_difference()
+{
+    std::ifstream file("100k_one_difference.txt");
+    double min_difference = 100, max_difference = 0, avg_difference, percentage;
+    std::string line, string1, string2, hash1, hash2;
+    int matches_count = 0;
+    std::vector<double> percentages;
+
+    while (!file.eof())
+    {
+        std::getline(file, line);
+        std::stringstream ss(line);
+
+        std::getline(ss, string1, ',');
+        std::getline(ss, string2);
+
+        hash1 = hash_function(string1);
+        hash2 = hash_function(string2);
+
+        std::string binary_hash1 = hex_to_binary(hash1);
+        std::string binary_hash2 = hex_to_binary(hash2);
+        
+        for (int i = 0; i < 64; ++i)
+        {
+            if (binary_hash1[i] == binary_hash2[i])
             {
                 matches_count++;
             }
