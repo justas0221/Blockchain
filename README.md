@@ -97,9 +97,9 @@ Maksimalus: 100%
 
 #### Bit lygio skirtumai:
 
-Vidutinis: 82.1156%<br />
-Minimalus: 64.0625%<br />
-Maksimalus: 93.75%
+Vidutinis: 59.543%<br />
+Minimalus: 36.3281%<br />
+Maksimalus: 62.8906%
 
 ## Išvados
 
@@ -111,5 +111,5 @@ Atsparumas kolizijoms<br />
 Aukšti hex lygio procentiniai skirtumai
 
 ### Silpnybės
-Bit lygio procentiniai skirtumai galėtų būti didesni
+Bit lygio procentiniai skirtumai nėra aukšti
 Algoritmas paprastas, todėl neaiškus jo saugumo lygis

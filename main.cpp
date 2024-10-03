@@ -73,6 +73,8 @@ int main(int argc, char **argv)
     // Output the result
     std::cout << "Hash: " << hash << std::endl;
 
+    binary_percentage_difference();
+
     return 0;
 }
 
@@ -333,15 +335,13 @@ void collision_search()
     file.close();
 }
 
-std::string hex_to_binary(const std::string& hex)
-{
+std::string hex_to_binary(const std::string& hex) {
     std::string binary_data;
-    binary_data.reserve(hex.size() / 2);
+    binary_data.reserve(hex.size() * 4);
 
-    for (size_t i = 0; i < hex.size(); i += 2) {
-        std::string byte = hex.substr(i, 2);
-        char chr = static_cast<char>(strtol(byte.c_str(), nullptr, 16));
-        binary_data.push_back(chr);
+    for (size_t i = 0; i < hex.size(); ++i) {
+        unsigned int hex_digit = std::stoi(hex.substr(i, 1), nullptr, 16);
+        binary_data += std::bitset<4>(hex_digit).to_string();
     }
     return binary_data;
 }
@@ -416,7 +416,7 @@ void binary_percentage_difference()
         std::string binary_hash1 = hex_to_binary(hash1);
         std::string binary_hash2 = hex_to_binary(hash2);
         
-        for (int i = 0; i < 64; ++i)
+        for (int i = 0; i < 256; ++i)
         {
             if (binary_hash1[i] == binary_hash2[i])
             {
@@ -424,7 +424,7 @@ void binary_percentage_difference()
             }
         }
 
-        percentage = 100 - (double(matches_count / 64.0) * 100);
+        percentage = 100 - (double(matches_count / 256.0) * 100);
         if (percentage > max_difference)
         {
             max_difference = percentage;
