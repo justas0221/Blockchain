@@ -79,6 +79,24 @@ Grąžinti<br />
 
 Iš aukščiau pavaizduoto grafo galime spręsti, jog maišos algoritmo sudėtingumas yra panašus į tiesinį.
 
+### SHA256 palyginimas su mano hash funkcija
+
+Palyginimui SHA256 spartą matavau naudodamas tą pačią laiko matavimo funkciją, kurią naudojau ir savo hash funkcijai testuoti, bei tą patį failą: "konstitucija.txt"
+
+| Line Count | My Function Time (μs) | SHA256 Time (μs) |
+| --- | --- | --- |
+| 1 | 4 | 6 |
+| 2 | 5 | 4 |
+| 4 | 6 | 3 |
+| 8 | 4 | 13 |
+| 16 | 12 | 11 |
+| 32 | 16 | 16 |
+| 64 | 34 | 32 |
+| 128 | 86 | 72 |
+| 256 | 257 | 188 |
+| 512 | 420 | 449 |
+| 1024 | 642 | 574 |
+
 ### Kolizijų paieška
 
 | Kolizijų kiekis |

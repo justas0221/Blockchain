@@ -12,6 +12,7 @@
 #include <random>
 #include <vector>
 #include <numeric>
+#include "sha256.h"
 
 #define BLOCK_SIZE 64
 
@@ -47,7 +48,8 @@ void padding(const uint8_t* input, size_t input_length, uint8_t** padded_message
 void process_block(uint32_t state[8], const uint8_t block[BLOCK_SIZE]);
 void read_file(char *argv, std::string &input);
 void manual_input(std::string &input);
-void time_tracking(std::string& input);
+void time_tracking_my_hash(std::string& input);
+void time_tracking_sha256(std::string& input);
 void read_file_time(std::string& input, int line_count);
 void generate_strings();
 void collision_search();
@@ -72,8 +74,6 @@ int main(int argc, char **argv)
     
     // Output the result
     std::cout << "Hash: " << hash << std::endl;
-
-    binary_percentage_difference();
 
     return 0;
 }
@@ -230,7 +230,7 @@ void manual_input(std::string &input)
     std::getline(std::cin, input);
 }
 
-void time_tracking(std::string& input)
+void time_tracking_my_hash(std::string& input)
 {
     const int repetitions = 5;
 
@@ -244,6 +244,28 @@ void time_tracking(std::string& input)
         for (int j = 0; j < repetitions; j++)
         {
             hash = hash_function(input);
+        }
+        auto finish = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(finish - start) / repetitions;
+
+        std::cout << "Hash: " << hash << " Time: " << duration.count() << " microseconds" << std::endl;
+    }
+}
+
+void time_tracking_sha256(std::string& input)
+{
+    const int repetitions = 5;
+
+    for (int i = 1; i < 1025; i *= 2)
+    {
+        std::string input;
+        std::string hash;
+        read_file_time(input, i);
+
+        auto start = std::chrono::high_resolution_clock::now();
+        for (int j = 0; j < repetitions; j++)
+        {
+            hash = sha256(input);
         }
         auto finish = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(finish - start) / repetitions;
