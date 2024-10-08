@@ -119,6 +119,67 @@ Vidutinis: 59.543%<br />
 Minimalus: 36.3281%<br />
 Maksimalus: 62.8906%
 
+### Hiding ir Puzzle-Friendliness savybių analizė
+
+Kad ištestuočiau, ar mano maišos funkcijos generuojami hash'ai kardinaliai skiriasi, nežymiai pakeitus įvestį, bei, ar įmanoma iš sugeneruoto hash'o išgauti pradinę įvestį, nusprendžiau susigeneruoti 100000 identiškų string'ų porų, prie kiekvienos iš jų pridėti 5 simbolių ilgio salt'ą ir žiūrėti, ar bus rasta kolizijų.
+
+```C++
+std::string generate_salt()
+{
+    const std::string CHARACTERS = "abcdefghijklmnopqrstuvwxyz";
+    std::string salt;
+    const int salt_length = 5;
+    std::random_device rd;
+    std::mt19937 generator(rd());
+
+    std::uniform_int_distribution<> char_distribution(0, CHARACTERS.size() - 1);
+    for (int i = 0; i < salt_length; ++i)
+    {
+        char random_symbol = CHARACTERS[char_distribution(generator)];
+        salt += random_symbol;
+    }
+
+    return salt;
+}
+
+void add_salt_to_file(std::string file_name)
+{
+    std::ifstream input_file(file_name);
+    size_t pos = file_name.find(".txt");
+    
+    if (pos != std::string::npos)
+    {
+        file_name.erase(pos, 4);
+    }
+    std::ofstream output_file(file_name + "_salt.txt");
+    std::string line;
+
+    while(std::getline(input_file, line))
+    {
+        std::stringstream ss(line);
+        std::string first, second, random_salt1, random_salt2;
+        
+        if (std::getline(ss, first, ',') && std::getline(ss, second))
+        {
+            do
+            {
+                random_salt1 = generate_salt();
+                random_salt2 = generate_salt();
+            } while (random_salt1 == random_salt2);
+            
+            first += generate_salt();
+            second += generate_salt();
+            output_file << first << "," << second << std::endl;
+        }
+    }
+
+    input_file.close();
+    output_file.close();
+}
+```
+
+Aukščiau galime matyti dvi funkcijas, viena generuoja "druską", o kitą prideda ją prie kiekvieno string'o įvesties faile. Paleidus programą ir ieškant kolizijų atnaujintame faile su "druska", nebuvo rasta nei viena kolizija, todėl galima teigti, jog mano hash funkcija turi hiding ir puzzle-friendliness savybes.
+
 ## Išvados
 
 ### Stiprybės

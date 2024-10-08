@@ -52,10 +52,12 @@ void time_tracking_my_hash(std::string& input);
 void time_tracking_sha256(std::string& input);
 void read_file_time(std::string& input, int line_count);
 void generate_strings();
-void collision_search();
+void collision_search(std::string file_name);
 std::string hex_to_binary(const std::string& hex);
 void hex_percentage_difference();
 void binary_percentage_difference();
+std::string generate_salt();
+void add_salt_to_file(std::string file_name);
 
 int main(int argc, char **argv)
 {
@@ -298,7 +300,7 @@ void read_file_time(std::string& input, int line_count)
 
 void generate_strings()
 {
-    std::ofstream output("test_files/100k_one_difference.txt", std::ios::app);
+    std::ofstream output("test_files/100k_same.txt", std::ios::app);
     const std::string CHARACTERS = "abcdefghijklmnopqrstuvwxyz";
 
     std::random_device rd;
@@ -317,24 +319,24 @@ void generate_strings()
         {
             char random_symbol = CHARACTERS[char_distribution(generator)];
             random_string1 += random_symbol;
-            random_string2 += random_symbol;
+            // random_string2 += random_symbol;
         }
 
-        do
-        {
-            random_string1[random_index] = CHARACTERS[char_distribution(generator)];
-            random_string2[random_index] = CHARACTERS[char_distribution(generator)];
-        } while (random_string1[random_index] == random_string2[random_index]);
+        // do
+        // {
+        //     random_string1[random_index] = CHARACTERS[char_distribution(generator)];
+        //     random_string2[random_index] = CHARACTERS[char_distribution(generator)];
+        // } while (random_string1[random_index] == random_string2[random_index]);
 
-        output << random_string1 << "," << random_string2 << std::endl;
+        output << random_string1 << "," << random_string1 << std::endl;
     }
 
     output.close();
 }
 
-void collision_search()
+void collision_search(std::string file_name)
 {
-    std::ifstream file("test_files/100k_strings.txt");
+    std::ifstream file(file_name);
     int collision_count = 0;
     std::string string1, string2, line;
 
@@ -352,7 +354,7 @@ void collision_search()
         }
     }
 
-    std::cout << collision_count << std::endl;
+    std::cout << "Collision count: " << collision_count << std::endl;
 
     file.close();
 }
@@ -466,3 +468,57 @@ void binary_percentage_difference()
 
     file.close();
 }
+
+std::string generate_salt()
+{
+    const std::string CHARACTERS = "abcdefghijklmnopqrstuvwxyz";
+    std::string salt;
+    const int salt_length = 5;
+    std::random_device rd;
+    std::mt19937 generator(rd());
+
+    std::uniform_int_distribution<> char_distribution(0, CHARACTERS.size() - 1);
+    for (int i = 0; i < salt_length; ++i)
+    {
+        char random_symbol = CHARACTERS[char_distribution(generator)];
+        salt += random_symbol;
+    }
+
+    return salt;
+}
+
+void add_salt_to_file(std::string file_name)
+{
+    std::ifstream input_file(file_name);
+    size_t pos = file_name.find(".txt");
+    
+    if (pos != std::string::npos)
+    {
+        file_name.erase(pos, 4);
+    }
+    std::ofstream output_file(file_name + "_salt.txt");
+    std::string line;
+
+    while(std::getline(input_file, line))
+    {
+        std::stringstream ss(line);
+        std::string first, second, random_salt1, random_salt2;
+        
+        if (std::getline(ss, first, ',') && std::getline(ss, second))
+        {
+            do
+            {
+                random_salt1 = generate_salt();
+                random_salt2 = generate_salt();
+            } while (random_salt1 == random_salt2);
+            
+            first += generate_salt();
+            second += generate_salt();
+            output_file << first << "," << second << std::endl;
+        }
+    }
+
+    input_file.close();
+    output_file.close();
+}
+
