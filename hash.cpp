@@ -1,4 +1,4 @@
-#include "my_hash.h"
+#include "hash.h"
 
 int main(int argc, char **argv)
 {
@@ -17,6 +17,12 @@ int main(int argc, char **argv)
     
     // Output the result
     std::cout << "Hash: " << hash << std::endl;
+
+    collision_search("test_files/100k_one_difference.txt");
+    hex_percentage_difference();
+    binary_percentage_difference();
+    time_tracking_my_hash();
+    time_tracking_sha256();
 
     return 0;
 }

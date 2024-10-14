@@ -48,8 +48,8 @@ void padding(const uint8_t* input, size_t input_length, uint8_t** padded_message
 void process_block(uint32_t state[8], const uint8_t block[BLOCK_SIZE]);
 void read_file(char *argv, std::string &input);
 void manual_input(std::string &input);
-void time_tracking_my_hash(std::string& input);
-void time_tracking_sha256(std::string& input);
+void time_tracking_my_hash();
+void time_tracking_sha256();
 void read_file_time(std::string& input, int line_count);
 void generate_strings();
 void collision_search(std::string file_name);
@@ -211,7 +211,7 @@ void manual_input(std::string &input)
     std::getline(std::cin, input);
 }
 
-void time_tracking_my_hash(std::string& input)
+void time_tracking_my_hash()
 {
     const int repetitions = 5;
 
@@ -233,7 +233,7 @@ void time_tracking_my_hash(std::string& input)
     }
 }
 
-void time_tracking_sha256(std::string& input)
+void time_tracking_sha256()
 {
     const int repetitions = 5;
 
