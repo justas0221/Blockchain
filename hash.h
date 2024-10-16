@@ -1,3 +1,6 @@
+#ifndef HASH_H
+#define HASH_H
+
 #include <iostream>
 #include <string>
 #include <bitset>
@@ -58,6 +61,7 @@ void hex_percentage_difference();
 void binary_percentage_difference();
 std::string generate_salt();
 void add_salt_to_file(std::string file_name);
+std::string get_specific_line(std::ifstream& file, int line_number);
 
 // Function which does the hashing and returns the final output as a string
 std::string hash_function(const std::string& input)
@@ -500,3 +504,32 @@ void add_salt_to_file(std::string file_name)
     input_file.close();
     output_file.close();
 }
+
+std::string get_specific_line(std::ifstream& file, int line_number)
+{
+    file.clear();
+    file.seekg(0, std::ios::beg);
+    std::string line;
+    
+    if (!file.is_open())
+    {
+        return "Error opening file";
+    }
+    
+    for (int i = 1; i < line_number; i++)
+    {
+        if (!std::getline(file, line))
+        {
+            return "Line number exceeds file length";
+        }
+    }
+    
+    if (std::getline(file, line))
+    {
+        return line;
+    }
+    
+    return "Line number exceeds file length";
+}
+
+#endif
