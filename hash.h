@@ -45,7 +45,7 @@ const uint32_t K[64] = {
     0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
 };
 
-std::string hash_function(const std::string& input);
+std::string hashFunction(const std::string& input);
 void initialize(uint32_t state[8]);
 void padding(const uint8_t* input, size_t input_length, uint8_t** padded_message, size_t* padded_length);
 void process_block(uint32_t state[8], const uint8_t block[BLOCK_SIZE]);
@@ -64,7 +64,7 @@ void add_salt_to_file(std::string file_name);
 std::string get_specific_line(std::ifstream& file, int line_number);
 
 // Function which does the hashing and returns the final output as a string
-std::string hash_function(const std::string& input)
+std::string hashFunction(const std::string& input)
 {
     uint32_t state[8];
     initialize(state);
@@ -228,7 +228,7 @@ void time_tracking_my_hash()
         auto start = std::chrono::high_resolution_clock::now();
         for (int j = 0; j < repetitions; j++)
         {
-            hash = hash_function(input);
+            hash = hashFunction(input);
         }
         auto finish = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(finish - start) / repetitions;
@@ -331,7 +331,7 @@ void collision_search(std::string file_name)
         std::getline(ss, string1, ',');
         std::getline(ss, string2);
 
-        if (hash_function(string1) == hash_function(string2))
+        if (hashFunction(string1) == hashFunction(string2))
         {
             collision_count++;
         }
@@ -369,8 +369,8 @@ void hex_percentage_difference()
         std::getline(ss, string1, ',');
         std::getline(ss, string2);
 
-        hash1 = hash_function(string1);
-        hash2 = hash_function(string2);
+        hash1 = hashFunction(string1);
+        hash2 = hashFunction(string2);
         
         for (int i = 0; i < 64; ++i)
         {
@@ -417,8 +417,8 @@ void binary_percentage_difference()
         std::getline(ss, string1, ',');
         std::getline(ss, string2);
 
-        hash1 = hash_function(string1);
-        hash2 = hash_function(string2);
+        hash1 = hashFunction(string1);
+        hash2 = hashFunction(string2);
 
         std::string binary_hash1 = hex_to_binary(hash1);
         std::string binary_hash2 = hex_to_binary(hash2);
