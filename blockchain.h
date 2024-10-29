@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <ctime>
+#include <set>
 #include "nlohmann/json.hpp"
 
 using json = nlohmann::json;
@@ -196,6 +197,86 @@ public:
         }
 
         return hashes.empty() ? "" : hashes.front();
+    }
+
+    std::string computeBlockHash()
+    {
+        // Concatenate the block header details
+        std::string blockData = prev_block_hash + merkle_root + std::to_string(timestamp) + std::to_string(nonce);
+        return hashFunction(blockData);
+    }
+};
+
+class Blockchain
+{
+private:
+    std::vector<Block> blocks;                    // The main blockchain
+    std::vector<Transaction> pendingTransactions; // List of unconfirmed transactions
+public:
+    Blockchain()
+    {
+        // Create and add a genesis block
+        Block genesisBlock("0", "1.0", 4); // Previous hash "0" (no previous block), version "1.0", difficulty level of 4
+        blocks.push_back(genesisBlock);
+    }
+
+    std::vector<Transaction> selectRandomTransactionsFromFile(const std::string& filename, int sampleSize)
+    {
+        std::ifstream file(filename);
+        std::string line;
+        std::vector<Transaction> sampleTransactions;
+        
+        if (!file.is_open())
+        {
+            throw std::runtime_error("Could not open file " + filename);
+        }
+
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        int lineNumber = 0;
+
+        // Reservoir sampling
+        while (std::getline(file, line))
+        {
+            Transaction transaction = Transaction::fromCSV(line);
+
+            if (lineNumber < sampleSize)
+            {
+                // Fill initial reservoir with transactions
+                sampleTransactions.push_back(transaction);
+            }
+            else
+            {
+                // Replace elements with decreasing probability
+                std::uniform_int_distribution<> distr(0, lineNumber);
+                int j = distr(gen);
+                if (j < sampleSize)
+                {
+                    sampleTransactions[j] = transaction;
+                }
+            }
+            ++lineNumber;
+        }
+
+        file.close();
+        return sampleTransactions;
+    }
+
+    Block createBlockFromSampledTransactions(const std::string& filename)
+    {
+        std::vector<Transaction> selectedTransactions = selectRandomTransactionsFromFile(filename, 100);
+
+        // Get the previous block's hash
+        std::string prevHash = blocks.back().computeBlockHash();
+
+        Block newBlock(prevHash, "1.0", 4);
+
+        for (const auto& tx : selectedTransactions)
+        {
+            newBlock.addTransaction(tx);
+        }
+
+        return newBlock;
     }
 };
 
