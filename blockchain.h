@@ -202,7 +202,6 @@ public:
             std::cout << "Previous Hash: " << prev_hash << std::endl;
             std::cout << "Version      : " << version << std::endl;
             std::cout << "Timestamp    : " << std::ctime(&timestamp);
-            std::cout << "Merkle Root  : " << merkleRoot << std::endl;
             std::cout << "-------------" << std::endl;
         }
 
@@ -241,8 +240,6 @@ public:
     void addTransaction(const Transaction& transaction)
     {
         transactions.push_back(transaction);
-        std::cout << "Transaction " << transaction.getID() << " added to Block with Previous Hash: " 
-                  << prev_block_hash << std::endl;
         merkle_root = computeMerkleRoot();
     }
 
@@ -301,7 +298,7 @@ public:
         throw std::out_of_range("Transaction index out of range");
     }
 
-    void mineBlock(int difficulty)
+    bool mineBlock(int difficulty)
     {
         std::string target(difficulty, '0');
         nonce = 0;
@@ -314,7 +311,7 @@ public:
             if (hash.substr(0, difficulty) == target)
             {
                 std::cout << "Block mined! Nonce: " << nonce << ", Hash: " << hash << std::endl;
-                break;
+                return true;
             }
             nonce++;
         }
@@ -454,16 +451,16 @@ public:
 
     Block createBlockFromSampledTransactions(const std::string& filename, int difficulty)
     {
-        std::vector<Transaction> selectedTransactions = selectRandomTransactionsFromFile(filename, 10);
+        std::vector<Transaction> selectedTransactions = selectRandomTransactionsFromFile(filename, 100);
         
         // Determine the previous block's hash; if no blocks exist, use a default value for genesis
         std::string prevHash = blocks.empty() ? "0" : blocks.back().computeBlockHash();
         
         // Create a new block, ensuring all necessary parameters are passed
-        std::string version = "1.0"; // Example version
-        std::time_t timestamp = std::time(nullptr); // Get the current time for the block's timestamp
-        std::string merkleRoot = ""; // Compute this based on transactions later if needed
-        Block newBlock(prevHash, version, difficulty, timestamp, merkleRoot); // Pass all necessary parameters
+        std::string version = "1.0";
+        std::time_t timestamp = std::time(nullptr);
+        std::string merkleRoot = "";
+        Block newBlock(prevHash, version, difficulty, timestamp, merkleRoot);
 
         // Add sampled transactions to the new block
         for (const auto& tx : selectedTransactions)
@@ -584,84 +581,141 @@ public:
 
     void mineAndAddBlock(const std::string& transactionFile, const std::string& userFile, int difficulty)
     {
-        // Create a temporary balance map
-        std::unordered_map<std::string, double> balanceMap;
+        const int candidateBlockCount = 5;
+        const int transactionSampleSize = 100;
+        const int maxAttempts = 100000;
+        const int maxTimeSeconds = 5;
 
-        // Load user balances into balanceMap from userFile
-        std::ifstream infile(userFile);
-        std::string line;
-        while (std::getline(infile, line))
+        bool blockMined = false;
+        int attemptLimit = maxAttempts;
+        int timeLimit = maxTimeSeconds;
+
+        while (!blockMined)
         {
-            User user = User::fromCSV(line);
-            balanceMap[user.getPublicKey()] = user.getBalance();
-        }
-        infile.close();
+            std::vector<Block> candidateBlocks;
+            std::vector<std::vector<Transaction>> allProcessedTransactions(candidateBlockCount);
 
-        // Create a new block with sampled transactions
-        Block newBlock = createBlockFromSampledTransactions(transactionFile, difficulty);
-
-        // Validate each transaction in the block
-        std::vector<Transaction> validTransactions;
-        for (const auto& transaction : newBlock.getTransactions())
-        {
-            const std::string& sender = transaction.getSenderKey();
-            const std::string& recipient = transaction.getRecipientKey();
-            double amount = transaction.getAmount();
-
-            // Check if sender has enough balance in the temporary balance map
-            if (balanceMap[sender] >= amount)
+            for (int i = 0; i < candidateBlockCount; ++i)
             {
-                // Update the temporary balances
-                balanceMap[sender] -= amount;
-                balanceMap[recipient] += amount;
+                // Reset balance map for each candidate block attempt
+                std::unordered_map<std::string, double> balanceMap;
+                std::ifstream infile(userFile);
+                std::string line;
+                while (std::getline(infile, line))
+                {
+                    User user = User::fromCSV(line);
+                    balanceMap[user.getPublicKey()] = user.getBalance();
+                }
+                infile.close();
 
-                // Add valid transaction to the block
-                validTransactions.push_back(transaction);
+                Block candidate = createBlockFromSampledTransactions(transactionFile, transactionSampleSize);
+
+                std::vector<Transaction> validTransactions;
+                std::vector<Transaction> processedTransactions;
+
+                for (const auto& transaction : candidate.getTransactions())
+                {
+                    processedTransactions.push_back(transaction);  // Track all transactions, valid or invalid
+
+                    if (validateTransaction(transaction, balanceMap))
+                    {
+                        // Update temporary balances if the transaction is valid
+                        balanceMap[transaction.getSenderKey()] -= transaction.getAmount();
+                        balanceMap[transaction.getRecipientKey()] += transaction.getAmount();
+                        validTransactions.push_back(transaction);
+                    }
+                    else
+                    {
+                        std::cout << "Transaction " << transaction.getID() << " denied." << std::endl;
+                    }
+                }
+
+                // Set only valid transactions in the candidate block
+                candidate.clearTransactions();
+                for (const auto& tx : validTransactions)
+                {
+                    candidate.addTransaction(tx);
+                }
+
+                candidateBlocks.push_back(candidate);
+                allProcessedTransactions[i] = processedTransactions;  // Store all processed transactions for this candidate
             }
-            else
+
+            // Attempt to mine each candidate block within the time and attempt limits
+            for (auto& candidate : candidateBlocks)
             {
-                std::cout << "Transaction " << transaction.getID() << " denied: Insufficient balance for user " 
-                        << sender << std::endl;
+                auto start = std::chrono::steady_clock::now();
+                int attempts = 0;
+
+                while (attempts < attemptLimit &&
+                    std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start).count() < timeLimit)
+                {
+                    if (candidate.mineBlock(difficulty))
+                    {
+                        blockMined = true;
+                        break;
+                    }
+                    ++attempts;
+                }
+
+                if (blockMined)
+                {
+                    // Block successfully mined, update user balances and save to blockchain
+                    updateBalances(candidate, userFile);
+
+                    // Remove all processed transactions (valid or invalid) from the transaction file
+                    std::vector<Transaction> processedTransactions;
+                    for (const auto& candidate : candidateBlocks)
+                    {
+                        processedTransactions.insert(processedTransactions.end(), 
+                            allProcessedTransactions[&candidate - &candidateBlocks[0]].begin(), 
+                            allProcessedTransactions[&candidate - &candidateBlocks[0]].end());
+                    }
+                    // Remove those transactions from the transaction file
+                    removeTransactions(processedTransactions, transactionFile);
+
+                    // Add the mined block to the blockchain
+                    blocks.push_back(candidate);
+                    std::cout << "Block successfully mined and added to blockchain!" << std::endl;
+
+                    return;
+                }
+
             }
+
+            // If no block was mined, increase time and attempt limits and retry
+            attemptLimit *= 2;
+            timeLimit *= 2;
+            std::cout << "Increasing mining limits. New attempt limit: " << attemptLimit << ", new time limit: " << timeLimit << " seconds." << std::endl;
         }
-
-        // Clear existing transactions and add only the validated ones
-        newBlock.clearTransactions();
-        for (const auto& tx : validTransactions)
-        {
-            newBlock.addTransaction(tx);
-        }
-
-        // Mine the block
-        newBlock.mineBlock(difficulty);
-
-        // Update balances in userFile based on valid transactions
-        updateBalances(newBlock, userFile);
-        removeTransactions(validTransactions, transactionFile);
-
-        // Add the mined block to the blockchain
-        blocks.push_back(newBlock);
     }
 
-    bool validateAndAddTransaction(const Transaction& transaction, const std::string& usersFile)
+    bool validateTransaction(const Transaction& transaction, const std::unordered_map<std::string, double>& balanceMap)
     {
-        User sender = getUserFromFile(transaction.getSenderKey(), usersFile);
-        User recipient = getUserFromFile(transaction.getRecipientKey(), usersFile);
-        
-        // Check if the sender has enough balance
-        if (sender.getBalance() < transaction.getAmount())
+        const std::string& sender = transaction.getSenderKey();
+        const std::string& recipient = transaction.getRecipientKey();
+        double amount = transaction.getAmount();
+
+        // Check if sender has enough balance
+        if (balanceMap.at(sender) < amount)
         {
-            std::cout << "Transaction denied: Insufficient balance for user " << sender.getName() << std::endl;
+            std::cout << "Transaction " << transaction.getID() << " denied: Insufficient balance for user " << sender << std::endl;
             return false;
         }
 
-        // Update the sender and recipient's balances temporarily in memory
-        sender.updateBalance(-transaction.getAmount());
-        recipient.updateBalance(transaction.getAmount());
+        // Construct a string of transaction details to verify the transaction ID (without timestamp)
+        std::string transactionData = sender + recipient + std::to_string(amount);
 
-        // Add the transaction to pending transactions
-        pendingTransactions.push_back(transaction);
-        std::cout << "Transaction added: " << transaction.getID() << std::endl;
+        // Verify the transaction ID by hashing transactionData
+        std::string calculatedHash = hashFunction(transactionData);
+        if (calculatedHash != transaction.getID())
+        {
+            std::cout << "Transaction " << transaction.getID() << " denied: Hash mismatch. Calculated hash: " 
+                    << calculatedHash << ", Expected hash: " << transaction.getID() << std::endl;
+            return false;
+        }
+
+        // Transaction is valid
         return true;
     }
 
@@ -778,6 +832,142 @@ public:
         file << std::setw(4) << blockchainJson << std::endl;
         file.close();
     }
+
+    // Print a block by index
+    void printBlockByIndex(int index) const
+    {
+        if (index >= 0 && index < blocks.size())
+        {
+            blocks[index].printBlock();
+        }
+        else
+        {
+            std::cout << "Block index out of range." << std::endl;
+        }
+    }
+
+    // Print a transaction by block and transaction indices
+    void printTransactionByIndices(int blockIndex, int transactionIndex) const
+    {
+        if (blockIndex >= 0 && blockIndex < blocks.size())
+        {
+            const Block& block = blocks[blockIndex];
+            if (transactionIndex >= 0 && transactionIndex < block.getTransactions().size())
+            {
+                block.getTransactions()[transactionIndex].printTransaction();
+            }
+            else
+            {
+                std::cout << "Transaction index out of range in the specified block." << std::endl;
+            }
+        }
+        else
+        {
+            std::cout << "Block index out of range." << std::endl;
+        }
+    }
 };
+
+int countLines(const std::string& filename)
+{
+    std::ifstream file(filename);
+    return std::count(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>(), '\n');
+}
+
+void generateUsers()
+{
+    std::ifstream file("users.txt");
+    std::ofstream outputFile("users.txt", std::ios::app);
+    
+    if (file.is_open() && outputFile.is_open())
+    {
+        int lastLine = countLines("users.txt");
+        
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_real_distribution<double> dis(100.0, 1000000.0);
+        
+        for (int i = 0; i < 1000; i++)
+        {
+            std::string name = "user" + std::to_string(lastLine + 1);
+            std::string publicKey = hashFunction(name);
+            double balance = dis(gen);
+            
+            outputFile << name << "," << publicKey << "," << balance << std::endl;
+            lastLine++;
+        }
+        
+        file.close();
+        outputFile.close();
+        std::cout << "1000 users generated" << std::endl;
+    }
+    else
+    {
+        std::cout << "Unable to open file." << std::endl;
+    }
+}
+
+void generateTransactions()
+{
+    int numUsers = countLines("users.txt");
+
+    std::ofstream transactionFile("transactions.txt", std::ios::app);
+    if (!transactionFile)
+    {
+        std::cerr << "Error opening transactions.txt" << std::endl;
+        return;
+    }
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> amountDist(1.0, 50000.0);
+    std::uniform_int_distribution<> lineDist(1, numUsers);
+
+    for (int i = 0; i < 1000; ++i)
+    {
+        std::string senderKey, receiverKey;
+        double amount = amountDist(gen);
+
+        std::ifstream userFile("users.txt");
+        if (!userFile)
+        {
+            std::cerr << "Error opening users.txt" << std::endl;
+            return;
+        }
+
+        int senderLine = lineDist(gen);
+        int receiverLine = lineDist(gen);
+
+        while (senderLine == receiverLine)
+        {
+            receiverLine = lineDist(gen);
+        }
+
+        for (int j = 1; j <= senderLine; ++j)
+        {
+            std::getline(userFile, senderKey);
+        }
+
+        userFile.clear();
+        userFile.seekg(0, std::ios::beg);
+        for (int j = 1; j <= receiverLine; ++j)
+        {
+            std::getline(userFile, receiverKey);
+        }
+
+        userFile.close();
+
+        senderKey = senderKey.substr(senderKey.find(',') + 1, senderKey.rfind(',') - senderKey.find(',') - 1);
+        receiverKey = receiverKey.substr(receiverKey.find(',') + 1, receiverKey.rfind(',') - receiverKey.find(',') - 1);
+
+        std::string transactionData = senderKey + receiverKey + std::to_string(amount);
+        std::string transactionID = hashFunction(transactionData);
+
+        transactionFile << transactionID << "," << senderKey << "," << receiverKey << "," << std::fixed << std::setprecision(6) << amount << std::endl;
+    }
+
+    transactionFile.close();
+    std::cout << "1000 transactions generated" << std::endl;
+}
 
 #endif
