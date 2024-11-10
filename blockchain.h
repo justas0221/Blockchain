@@ -651,10 +651,6 @@ public:
                         balanceMap[transaction.getRecipientKey()] += transaction.getAmount();
                         validTransactions.push_back(transaction);
                     }
-                    else
-                    {
-                        std::cout << "Transaction " << transaction.getID() << " denied." << std::endl;
-                    }
                 }
 
                 candidate.clearTransactions();

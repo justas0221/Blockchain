@@ -74,3 +74,24 @@ Jei norite išeiti iš programos, pasirinkite „4“ pasirinkimų meniu arba pa
 
 ## Programos ypatybės
 
+Programos veikimo metu yra išvedami kiekvieno sukurto bloko duomenys:
+
+![Block Creation](images/1.png)
+
+Transakcijų, kurios nebuvo įvykdytos dėl nepakankamų lėšų, duomenys:
+
+![Transaction Denial](images/2.png)
+
+Pranešimas apie blokus, kurie buvo iškasti ir pridėti prie grandinės, bei jų duomenys:
+
+![Block Mined](images/3.png)
+
+-----
+
+Paleidus programą ir pasirinkus antrą variantą - atspausdinti bloką, yra išvedami pagal indeksą grandinėje pasirinkto bloko duomenys ir visos jame esančios transakcijos tokiu fomratu:
+
+![Print Block](images/4.png)
+
+Pasirinkus trečią variantą iš meniu - atspausdinti transakciją, yra išvedami duomenys transakcijos, kuri buvo pasirinkta nurodant bloko indeksą ir transakcijos indeksą tame bloke:
+
+![Print Transaction](images/5.png)
