@@ -13,7 +13,6 @@ int main()
     const std::string userFile = "users.txt";
     int difficulty = 4;
 
-    // Main mining loop
     while (true)
     {
         // Check if there are transactions left to process

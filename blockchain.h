@@ -6,6 +6,8 @@
 #include <ctime>
 #include <set>
 #include <unordered_set>
+#include <omp.h>
+#include <atomic>
 #include "nlohmann/json.hpp"
 
 using json = nlohmann::json;
@@ -182,8 +184,10 @@ private:
 
 public:
     // Constructor with only mandatory members
-    Block(const std::string& prev_hash, const std::string& version, int difficulty)
+    Block(const std::string& prev_hash, const std::string& version, int difficulty, bool printInfo = true)
         : prev_block_hash(prev_hash), timestamp(std::time(nullptr)), nonce(0), difficulty_target(difficulty), version(version)
+    {
+        if (printInfo)
         {
             std::cout << "-------------" << std::endl;
             std::cout << "Block Created: " << std::endl;
@@ -192,10 +196,13 @@ public:
             std::cout << "Timestamp    : " << std::ctime(&timestamp) << std::endl;
             std::cout << "-------------" << std::endl;
         }
+    }
 
     // Constructor with all of the members
-    Block(const std::string& prev_hash, const std::string& version, int difficulty, std::time_t timestamp, const std::string& merkleRoot)
+    Block(const std::string& prev_hash, const std::string& version, int difficulty, std::time_t timestamp, const std::string& merkleRoot, bool printInfo = true)
         : prev_block_hash(prev_hash), timestamp(timestamp), nonce(0), difficulty_target(difficulty), version(version), merkle_root(merkleRoot)
+    {
+        if (printInfo)
         {
             std::cout << "-------------" << std::endl;
             std::cout << "Block Created: " << std::endl;
@@ -204,6 +211,7 @@ public:
             std::cout << "Timestamp    : " << std::ctime(&timestamp);
             std::cout << "-------------" << std::endl;
         }
+    }
 
     // Getter methods
     std::string getPreviousHash() const
@@ -342,7 +350,7 @@ public:
         blockJson["prev_block_hash"] = prev_block_hash;
         blockJson["version"] = version;
         blockJson["merkle_root"] = merkle_root;
-        blockJson["timestamp"] = convertTimestampToDate(timestamp); // Call const function
+        blockJson["timestamp"] = convertTimestampToDate(timestamp);
         blockJson["nonce"] = nonce;
         blockJson["difficulty_target"] = difficulty_target;
 
@@ -385,6 +393,7 @@ class Blockchain
 private:
     std::vector<Block> blocks;                    // The main blockchain
     std::vector<Transaction> pendingTransactions; // List of unconfirmed transactions
+    std::atomic<bool> blockMined{false};
 public:
     Blockchain()
     {
@@ -581,12 +590,12 @@ public:
 
     void mineAndAddBlock(const std::string& transactionFile, const std::string& userFile, int difficulty)
     {
+        blockMined = false;
         const int candidateBlockCount = 5;
         const int transactionSampleSize = 100;
         const int maxAttempts = 100000;
         const int maxTimeSeconds = 5;
 
-        bool blockMined = false;
         int attemptLimit = maxAttempts;
         int timeLimit = maxTimeSeconds;
 
@@ -597,7 +606,7 @@ public:
 
             for (int i = 0; i < candidateBlockCount; ++i)
             {
-                // Reset balance map for each candidate block attempt
+                // Initialize each candidate block
                 std::unordered_map<std::string, double> balanceMap;
                 std::ifstream infile(userFile);
                 std::string line;
@@ -615,11 +624,10 @@ public:
 
                 for (const auto& transaction : candidate.getTransactions())
                 {
-                    processedTransactions.push_back(transaction);  // Track all transactions, valid or invalid
+                    processedTransactions.push_back(transaction);
 
                     if (validateTransaction(transaction, balanceMap))
                     {
-                        // Update temporary balances if the transaction is valid
                         balanceMap[transaction.getSenderKey()] -= transaction.getAmount();
                         balanceMap[transaction.getRecipientKey()] += transaction.getAmount();
                         validTransactions.push_back(transaction);
@@ -630,7 +638,6 @@ public:
                     }
                 }
 
-                // Set only valid transactions in the candidate block
                 candidate.clearTransactions();
                 for (const auto& tx : validTransactions)
                 {
@@ -638,55 +645,55 @@ public:
                 }
 
                 candidateBlocks.push_back(candidate);
-                allProcessedTransactions[i] = processedTransactions;  // Store all processed transactions for this candidate
+                allProcessedTransactions[i] = processedTransactions;
             }
 
-            // Attempt to mine each candidate block within the time and attempt limits
-            for (auto& candidate : candidateBlocks)
+            // Parallelize the mining process
+            #pragma omp parallel for
+            for (int i = 0; i < candidateBlockCount; ++i)
             {
+                Block& candidate = candidateBlocks[i];
                 auto start = std::chrono::steady_clock::now();
                 int attempts = 0;
 
                 while (attempts < attemptLimit &&
-                    std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start).count() < timeLimit)
+                    std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start).count() < timeLimit &&
+                    !blockMined)  // Check if another thread has already mined a block
                 {
                     if (candidate.mineBlock(difficulty))
                     {
                         blockMined = true;
+                        #pragma omp critical  // Ensure only one thread performs this section
+                        {
+                            if (blockMined) {
+                                // Update user balances and save mined block
+                                updateBalances(candidate, userFile);
+
+                                std::vector<Transaction> processedTransactions;
+                                for (int j = 0; j < candidateBlockCount; ++j) {
+                                    processedTransactions.insert(processedTransactions.end(), 
+                                        allProcessedTransactions[j].begin(), 
+                                        allProcessedTransactions[j].end());
+                                }
+                                removeTransactions(processedTransactions, transactionFile);
+
+                                blocks.push_back(candidate);
+                                std::cout << "Block successfully mined and added to blockchain!" << std::endl;
+                            }
+                        }
                         break;
                     }
                     ++attempts;
                 }
-
-                if (blockMined)
-                {
-                    // Block successfully mined, update user balances and save to blockchain
-                    updateBalances(candidate, userFile);
-
-                    // Remove all processed transactions (valid or invalid) from the transaction file
-                    std::vector<Transaction> processedTransactions;
-                    for (const auto& candidate : candidateBlocks)
-                    {
-                        processedTransactions.insert(processedTransactions.end(), 
-                            allProcessedTransactions[&candidate - &candidateBlocks[0]].begin(), 
-                            allProcessedTransactions[&candidate - &candidateBlocks[0]].end());
-                    }
-                    // Remove those transactions from the transaction file
-                    removeTransactions(processedTransactions, transactionFile);
-
-                    // Add the mined block to the blockchain
-                    blocks.push_back(candidate);
-                    std::cout << "Block successfully mined and added to blockchain!" << std::endl;
-
-                    return;
-                }
-
             }
 
-            // If no block was mined, increase time and attempt limits and retry
-            attemptLimit *= 2;
-            timeLimit *= 2;
-            std::cout << "Increasing mining limits. New attempt limit: " << attemptLimit << ", new time limit: " << timeLimit << " seconds." << std::endl;
+            if (!blockMined)
+            {
+                // Increase limits if no block is mined within current constraints
+                attemptLimit *= 2;
+                timeLimit *= 2;
+                std::cout << "Increasing mining limits. New attempt limit: " << attemptLimit << ", new time limit: " << timeLimit << " seconds." << std::endl;
+            }
         }
     }
 
@@ -756,8 +763,6 @@ public:
 
         for (const auto& blockJson : blockchainJson)
         {
-            // Additional checks can be added here for blockJson fields if necessary
-
             std::string prevHash = blockJson["prev_block_hash"];
             std::string version = blockJson["version"];
             std::string timestampStr = blockJson["timestamp"]; // Read the timestamp as a string
@@ -779,7 +784,8 @@ public:
             int difficultyTarget = blockJson["difficulty_target"];
             std::string merkleRoot = blockJson["merkle_root"];
 
-            Block newBlock(prevHash, version, difficultyTarget, timestamp, merkleRoot);
+            // Pass `false` to avoid printing block info when loading from file
+            Block newBlock(prevHash, version, difficultyTarget, timestamp, merkleRoot, false);
 
             // Load transactions
             for (const auto& txJson : blockJson["transactions"])
