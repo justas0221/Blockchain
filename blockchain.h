@@ -599,29 +599,48 @@ public:
         int attemptLimit = maxAttempts;
         int timeLimit = maxTimeSeconds;
 
+        // Check if there are transactions in the file
+        if (std::filesystem::file_size(transactionFile) == 0)
+        {
+            std::cout << "No transactions left to mine." << std::endl;
+            return;  // Skip the mining process if there are no transactions left
+        }
+
+        // Continue with mining if there are transactions left
         while (!blockMined)
         {
             std::vector<Block> candidateBlocks;
             std::vector<std::vector<Transaction>> allProcessedTransactions(candidateBlockCount);
 
+            // Only create candidate blocks if there are transactions to process
+            std::ifstream infile(transactionFile);
+            std::string line;
+            if (!std::getline(infile, line))
+            {
+                std::cout << "No transactions available to process." << std::endl;
+                return;  // If no transaction is found in the file, exit mining
+            }
+            infile.close();
+
+            // Now start creating candidate blocks
             for (int i = 0; i < candidateBlockCount; ++i)
             {
-                // Initialize each candidate block
                 std::unordered_map<std::string, double> balanceMap;
-                std::ifstream infile(userFile);
-                std::string line;
-                while (std::getline(infile, line))
+                std::ifstream userFileIn(userFile);
+                std::string userLine;
+                while (std::getline(userFileIn, userLine))
                 {
-                    User user = User::fromCSV(line);
+                    User user = User::fromCSV(userLine);
                     balanceMap[user.getPublicKey()] = user.getBalance();
                 }
-                infile.close();
+                userFileIn.close();
 
                 Block candidate = createBlockFromSampledTransactions(transactionFile, transactionSampleSize);
 
                 std::vector<Transaction> validTransactions;
                 std::vector<Transaction> processedTransactions;
 
+                // Validate transactions
                 for (const auto& transaction : candidate.getTransactions())
                 {
                     processedTransactions.push_back(transaction);
@@ -652,28 +671,35 @@ public:
             #pragma omp parallel for
             for (int i = 0; i < candidateBlockCount; ++i)
             {
+                if (blockMined.load(std::memory_order_acquire))
+                {
+                    return;  // Exit mining if a block is already mined
+                }
+
                 Block& candidate = candidateBlocks[i];
                 auto start = std::chrono::steady_clock::now();
                 int attempts = 0;
 
                 while (attempts < attemptLimit &&
                     std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start).count() < timeLimit &&
-                    !blockMined)  // Check if another thread has already mined a block
+                    !blockMined.load(std::memory_order_acquire))
                 {
                     if (candidate.mineBlock(difficulty))
                     {
-                        blockMined = true;
-                        #pragma omp critical  // Ensure only one thread performs this section
+                        bool expected = false;
+                        if (blockMined.compare_exchange_strong(expected, true, std::memory_order_acq_rel))
                         {
-                            if (blockMined) {
+                            #pragma omp critical
+                            {
                                 // Update user balances and save mined block
                                 updateBalances(candidate, userFile);
 
                                 std::vector<Transaction> processedTransactions;
-                                for (int j = 0; j < candidateBlockCount; ++j) {
-                                    processedTransactions.insert(processedTransactions.end(), 
-                                        allProcessedTransactions[j].begin(), 
-                                        allProcessedTransactions[j].end());
+                                for (int j = 0; j < candidateBlockCount; ++j)
+                                {
+                                    processedTransactions.insert(processedTransactions.end(),
+                                                                allProcessedTransactions[j].begin(),
+                                                                allProcessedTransactions[j].end());
                                 }
                                 removeTransactions(processedTransactions, transactionFile);
 
@@ -681,19 +707,21 @@ public:
                                 std::cout << "Block successfully mined and added to blockchain!" << std::endl;
                             }
                         }
-                        break;
+                        break;  // Exit this mining loop if a block is mined
                     }
                     ++attempts;
                 }
             }
 
-            if (!blockMined)
+            if (blockMined)
             {
-                // Increase limits if no block is mined within current constraints
-                attemptLimit *= 2;
-                timeLimit *= 2;
-                std::cout << "Increasing mining limits. New attempt limit: " << attemptLimit << ", new time limit: " << timeLimit << " seconds." << std::endl;
+                break;  // Exit the loop if a block has been mined
             }
+
+            // If no block was mined, increase limits and retry
+            attemptLimit *= 2;
+            timeLimit *= 2;
+            std::cout << "Increasing mining limits. New attempt limit: " << attemptLimit << ", new time limit: " << timeLimit << " seconds." << std::endl;
         }
     }
 
